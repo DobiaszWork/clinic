@@ -2,9 +2,6 @@ package com.bosch.onsite.repository;
 
 public class ClinicRepositoryException extends Exception {
 
-	private static final long serialVersionUID = 2743947577857070965L;
-	private Error error;
-
 	enum Error {
 
 		NO_DOCTOR("Invalid doctor ID"),
@@ -24,6 +21,9 @@ public class ClinicRepositoryException extends Exception {
 		}
 
 	}
+	private static final long serialVersionUID = 2743947577857070965L;
+
+	private final Error error;
 
 	ClinicRepositoryException(Error error) {
 		super();

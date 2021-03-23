@@ -34,6 +34,41 @@ import com.bosch.onsite.repository.ClinicRepositoryException.Error;
 @Service
 public class ClinicRepository {
 
+	private static class Doctors extends HashMap<Long, Doctor> {
+
+		private static final long serialVersionUID = 6110114473600174719L;
+
+		public void fetchVisits(ClinicRepository repo) {
+			values().forEach(d -> d.setVisits(repo.getVisitsForDoctor(d.getId().longValue())));
+		}
+
+	}
+
+	private static class Patients extends HashMap<Long, Patient> {
+
+		private static final long serialVersionUID = -2556621535127724176L;
+
+		public void fetchVisits(ClinicRepository repo) {
+			values().forEach(p -> p.setVisits(repo.getVisitsForPatient(p.getId().longValue())));
+		}
+
+	}
+
+	private static class Visits extends HashMap<Long, Visit> {
+
+		private static final long serialVersionUID = -3228726547387920554L;
+
+		public void put(Visit visit) {
+			if (visit.getId() == null) {
+				visit.setId(Long.valueOf(size()));
+			}
+			put(visit.getId(), visit);
+		}
+
+	}
+
+	private static final String DATA = ".data";
+
 	@SuppressWarnings("unchecked")
 	private static <T> T readObject(Path path) throws FileNotFoundException, IOException, ClassNotFoundException {
 		final File file = path.toFile();
@@ -45,63 +80,16 @@ public class ClinicRepository {
 		return null;
 	}
 
-	private static class Doctors extends HashMap<Long, Doctor> {
-
-		private static final long serialVersionUID = 6110114473600174719L;
-
-	}
-
-	private static class Visits extends HashMap<Long, Visit> {
-
-		private static final long serialVersionUID = -3228726547387920554L;
-
-		public void put(Visit visit) {
-			if (visit.getId() == null) {
-				visit.setId(Long.valueOf(this.size()));
+	private static <T extends Map<Long, ? extends AbstractClinicPersistable>> T readRepo(Class<T> clazz) {
+		Path pDoctors = Paths.get(clazz.getSimpleName() + DATA);
+		if (Files.exists(pDoctors)) {
+			try {
+				return readObject(pDoctors);
+			} catch (ClassNotFoundException | IOException e) {
+				e.printStackTrace();
 			}
-			put(visit.getId(), visit);
 		}
-
-	}
-
-	private static class Patients extends HashMap<Long, Patient> {
-
-		private static final long serialVersionUID = -2556621535127724176L;
-
-	}
-
-	private Doctors doctors;
-	private Patients patients;
-	private Visits visits;
-
-	public ClinicRepository() throws FileNotFoundException, IOException {
-		initRepo();
-	}
-
-	private static final String DATA = ".data";
-
-	@SuppressWarnings("boxing")
-	private void initRepo() throws FileNotFoundException, IOException {
-		doctors = readRepo(Doctors.class);
-		if (doctors == null) {
-			doctors = new Doctors();
-			doctors.put(1L, new Doctor(1L, "Dr", "Dre", this));
-			doctors.put(2L, new Doctor(2L, "Dr", "Alban", this));
-			doctors.put(3L, new Doctor(3L, "Dr", "House", this));
-			saveRepo(doctors);
-		}
-		patients = readRepo(Patients.class);
-		if (patients == null) {
-			patients = new Patients();
-			patients.put(1L, new Patient(1L, "Eugeniusz", "Cierpliwy", this));
-			patients.put(2L, new Patient(2L, "Vera", "Unpatient", this));
-			saveRepo(patients);
-		}
-		visits = readRepo(Visits.class);
-		if (visits == null) {
-			visits = new Visits();
-			saveRepo(doctors);
-		}
+		return null;
 	}
 
 	private static void saveRepo(Serializable object) throws FileNotFoundException, IOException {
@@ -112,28 +100,58 @@ public class ClinicRepository {
 		}
 	}
 
-	private <T extends Map<Long, ? extends AbstractClinicPersistable>> T readRepo(Class<T> clazz) {
-		Path pDoctors = Paths.get(clazz.getSimpleName() + DATA);
-		if (Files.exists(pDoctors)) {
-			try {
-				T result = readObject(pDoctors);
-				result.values().forEach(v -> v.setRepository(this));
-				return result;
-			} catch (ClassNotFoundException | IOException e) {
-				e.printStackTrace();
-			}
+	private static void validateBookRequest(Patient p, Doctor d, int timeSlotIdx) throws ClinicRepositoryException {
+		if (p == null) {
+			throw new ClinicRepositoryException(Error.NO_PATIENT);
 		}
-		return null;
+		if (d == null) {
+			throw new ClinicRepositoryException(Error.NO_DOCTOR);
+		}
+		if (timeSlotIdx < 0 || timeSlotIdx >= Const.VISITS_PER_DAY) {
+			throw new ClinicRepositoryException(Error.INVALID_TIMESLOT);
+		}
+	}
+	
+	private Doctors doctors;
+	private Patients patients;
+	private Visits visits;
+
+	public ClinicRepository() throws FileNotFoundException, IOException {
+		initRepo();
 	}
 
-	public Set<Doctor> getAvailableDoctors() {
-		return doctors.values().stream().filter(d -> d.hasFreeTermins()).collect(Collectors.toSet());
+	@SuppressWarnings("boxing")
+	private void initRepo() throws FileNotFoundException, IOException {
+		visits = readRepo(Visits.class);
+		if (visits == null) {
+			visits = new Visits();
+			saveRepo(visits);
+		}
+		doctors = readRepo(Doctors.class);
+		if (doctors == null) {
+			doctors = new Doctors();
+			doctors.put(1L, new Doctor(1L, "Dr", "Dre"));
+			doctors.put(2L, new Doctor(2L, "Dr", "Alban"));
+			doctors.put(3L, new Doctor(3L, "Dr", "House"));
+			saveRepo(doctors);
+		}
+		doctors.fetchVisits(this);
+		patients = readRepo(Patients.class);
+		if (patients == null) {
+			patients = new Patients();
+			patients.put(1L, new Patient(1L, "Eugeniusz", "Cierpliwy"));
+			patients.put(2L, new Patient(2L, "Vera", "Unpatient"));
+			saveRepo(patients);
+		}
+		patients.fetchVisits(this);
 	}
 
-	public Set<Visit> getVisitsForDoctor(long doctorId) {
-		Set<Visit> result = visits.values().stream().filter(v -> v.getDoctorId() == doctorId).collect(Collectors.toSet());
-		result.forEach(v -> v.fetchPatient());
-		return result;
+	Doctor getDoctorById(long doctorId) {
+		return doctors.get(Long.valueOf(doctorId));
+	}
+
+	Patient getPatientById(long patientId) {
+		return patients.get(Long.valueOf(patientId));
 	}
 
 	public Visit bookTermin(Long patientId, Long doctorId, int timeSlotIdx)
@@ -148,24 +166,12 @@ public class ClinicRepository {
 			if (!p.getFreeTermins().contains(Integer.valueOf(timeSlotIdx))) {
 				throw new ClinicRepositoryException(Error.NO_TIMESLOT);
 			}
-			Visit visit = new Visit(patientId.longValue(), doctorId.longValue(), timeSlotIdx, this);
+			Visit visit = new Visit(patientId.longValue(), doctorId.longValue(), timeSlotIdx);
 			visits.put(visit);
 			saveRepo(visits);
-			d.fetchVisits();
-			p.fetchVisits();
+			d.setVisits(getVisitsForDoctor(doctorId.longValue()));
+			p.setVisits(getVisitsForPatient(patientId.longValue()));
 			return visit;
-		}
-	}
-
-	private static void validateBookRequest(Patient p, Doctor d, int timeSlotIdx) throws ClinicRepositoryException {
-		if (p == null) {
-			throw new ClinicRepositoryException(Error.NO_PATIENT);
-		}
-		if (d == null) {
-			throw new ClinicRepositoryException(Error.NO_DOCTOR);
-		}
-		if (timeSlotIdx < 0 || timeSlotIdx >= Const.VISITS_PER_DAY) {
-			throw new ClinicRepositoryException(Error.INVALID_TIMESLOT);
 		}
 	}
 
@@ -186,24 +192,26 @@ public class ClinicRepository {
 			}
 			visits.remove(visit.get().getKey());
 			saveRepo(visits);
-			d.fetchVisits();
-			p.fetchVisits();
+			d.setVisits(getVisitsForDoctor(doctorId.longValue()));
+			p.setVisits(getVisitsForPatient(patientId.longValue()));
 			return visit.get().getValue();
 		}
 	}
 
-	public Set<Visit> getVisitsForPatient(long patientId) {
-		Set<Visit> result = visits.values().stream().filter(v -> v.getPatientId() == patientId).collect(Collectors.toSet());
-		result.forEach(v -> v.fetchDoctor());
+	public Set<Doctor> getAvailableDoctors() {
+		return doctors.values().stream().filter(d -> d.hasFreeTermins()).collect(Collectors.toSet());
+	}
+
+	public Set<Visit> getVisitsForDoctor(long doctorId) {
+		Set<Visit> result = visits.values().stream().filter(v -> v.getDoctorId() == doctorId).collect(Collectors.toSet());
+		result.forEach(v -> v.setPatient(getPatientById(v.getPatientId())));
 		return result;
 	}
 
-	public Doctor getDoctorById(long doctorId) {
-		return doctors.get(Long.valueOf(doctorId));
-	}
-
-	public Patient getPatientById(long patientId) {
-		return patients.get(Long.valueOf(patientId));
+	public Set<Visit> getVisitsForPatient(long patientId) {
+		Set<Visit> result = visits.values().stream().filter(v -> v.getPatientId() == patientId).collect(Collectors.toSet());
+		result.forEach(v -> v.setDoctor(getDoctorById(v.getDoctorId())));
+		return result;
 	}
 
 }

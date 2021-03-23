@@ -47,11 +47,6 @@ public class ClinicController { // NO_UCD (unused code)
 		return result;
 	}
 
-	@GetMapping(value = "/patient/{id}/visits")
-	public Set<Visit> listPatientVisits(@PathVariable long id) {
-		return repo.getVisitsForPatient(id);
-	}
-
 	@GetMapping(value = "/doctor/list")
 	public Set<Doctor> getAvailableDoctors() {
 		return repo.getAvailableDoctors();
@@ -60,6 +55,11 @@ public class ClinicController { // NO_UCD (unused code)
 	@GetMapping(value = "/doctor/{id}/visits")
 	public Set<Visit> listDoctorVisits(@PathVariable long id) {
 		return repo.getVisitsForDoctor(id);
+	}
+
+	@GetMapping(value = "/patient/{id}/visits")
+	public Set<Visit> listPatientVisits(@PathVariable long id) {
+		return repo.getVisitsForPatient(id);
 	}
 
 }
