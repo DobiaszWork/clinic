@@ -2,7 +2,7 @@ package com.bosch.onsite.repository;
 
 public class ClinicRepositoryException extends Exception {
 
-	enum Error {
+	public enum Error {
 
 		NO_DOCTOR("Invalid doctor ID"),
 		NO_PATIENT("Invalid patient ID"),
@@ -16,7 +16,7 @@ public class ClinicRepositoryException extends Exception {
 			this.text = text;
 		}
 
-		String getText() {
+		public String getText() {
 			return text;
 		}
 

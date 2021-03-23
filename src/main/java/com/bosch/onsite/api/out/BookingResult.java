@@ -22,4 +22,9 @@ public class BookingResult {
 	public void setVisit(Visit visit) {
 		this.visit = visit;
 	}
+
+	@Override
+	public String toString() {
+		return this.getClass().getSimpleName() + ":[" + error + ", " + (visit != null ? visit.toString() : null) + "]";
+	}
 }

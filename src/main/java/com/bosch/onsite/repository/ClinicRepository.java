@@ -111,7 +111,7 @@ public class ClinicRepository {
 			throw new ClinicRepositoryException(Error.INVALID_TIMESLOT);
 		}
 	}
-	
+
 	private Doctors doctors;
 	private Patients patients;
 	private Visits visits;
@@ -135,7 +135,6 @@ public class ClinicRepository {
 			doctors.put(3L, new Doctor(3L, "Dr", "House"));
 			saveRepo(doctors);
 		}
-		doctors.fetchVisits(this);
 		patients = readRepo(Patients.class);
 		if (patients == null) {
 			patients = new Patients();
@@ -143,6 +142,7 @@ public class ClinicRepository {
 			patients.put(2L, new Patient(2L, "Vera", "Unpatient"));
 			saveRepo(patients);
 		}
+		doctors.fetchVisits(this);
 		patients.fetchVisits(this);
 	}
 
@@ -212,6 +212,12 @@ public class ClinicRepository {
 		Set<Visit> result = visits.values().stream().filter(v -> v.getPatientId() == patientId).collect(Collectors.toSet());
 		result.forEach(v -> v.setDoctor(getDoctorById(v.getDoctorId())));
 		return result;
+	}
+
+	public void resetVisits() {
+		visits.clear();
+		doctors.fetchVisits(this);
+		patients.fetchVisits(this);
 	}
 
 }

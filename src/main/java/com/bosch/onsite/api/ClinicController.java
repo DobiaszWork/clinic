@@ -62,4 +62,11 @@ public class ClinicController { // NO_UCD (unused code)
 		return repo.getVisitsForPatient(id);
 	}
 
+	/**
+	 * Test-only method for resetting repo.
+	 */
+	public void resetVisits() {
+		repo.resetVisits();
+	}
+
 }

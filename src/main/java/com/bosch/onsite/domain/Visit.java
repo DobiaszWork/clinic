@@ -45,4 +45,9 @@ public class Visit extends AbstractClinicPersistable {
 		this.patient = patient;
 	}
 
+	@Override
+	public String toString() {
+		return this.getClass().getSimpleName() + ":[" + patientId + ", " + doctorId + ", " + timeSlotIdx + "]";
+	}
+
 }
